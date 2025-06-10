@@ -37,7 +37,6 @@ export default function ChatScreen() {
       return;
     }
 
-    // Atualiza dados do usuário
     const updatedData = { ...userData, [currentQ.id]: userInput };
     setUserData(updatedData);
 
