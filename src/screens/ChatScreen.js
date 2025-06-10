@@ -5,6 +5,12 @@ import { askGemini } from "../services/gemini";
 import { questions } from "../utils/chatFlow";
 import { saveChat, loadChat } from "../utils/storage";
 import { fetchExercises } from '../services/exerciseDb';
+import ExerciseCard from '../components/ExerciseCard';
+
+// Componente de ícone extraído (melhor para performance)
+const UserIcon = ({ isUser }) => (
+  <List.Icon icon={isUser ? "account" : "robot"} />
+);
 
 export default function ChatScreen() {
   const [messages, setMessages] = useState([]);
@@ -12,6 +18,7 @@ export default function ChatScreen() {
   const [currentStep, setCurrentStep] = useState(0);
   const [userData, setUserData] = useState({});
   const [exercises, setExercises] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const loadHistory = async () => {
@@ -23,8 +30,43 @@ export default function ChatScreen() {
     loadHistory();
   }, []);
 
+  const handleExerciseSearch = async () => {
+    setIsLoading(true);
+    try {
+      const data = await fetchExercises(5); // Busca 5 exercícios
+      setExercises(data);
+      
+      setMessages(prev => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          text: "Aqui estão alguns exercícios recomendados:",
+          fromUser: false
+        }
+      ]);
+    } catch (error) {
+      setMessages(prev => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          text: "Não consegui buscar exercícios no momento. Por favor, tente mais tarde.",
+          fromUser: false
+        }
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSend = async () => {
     if (!userInput.trim()) return;
+
+    // Comando especial para buscar exercícios
+    if (userInput.toLowerCase() === 'exercicios') {
+      await handleExerciseSearch();
+      setUserInput("");
+      return;
+    }
 
     const currentQ = questions[currentStep];
     if (!currentQ.validate(userInput)) {
@@ -40,7 +82,6 @@ export default function ChatScreen() {
     const updatedData = { ...userData, [currentQ.id]: userInput };
     setUserData(updatedData);
 
-    // Cria novas mensagens com IDs únicos
     const userMessage = {
       id: Date.now().toString(),
       text: userInput,
@@ -57,14 +98,12 @@ export default function ChatScreen() {
     setMessages(newMessages);
     setUserInput("");
 
-    // Avança para a próxima pergunta ou finaliza
     if (currentStep < questions.length - 1) {
       const nextQuestion = {
         id: (Date.now() + 2).toString(),
         text: questions[currentStep + 1].text,
         fromUser: false,
       };
-
       setCurrentStep(currentStep + 1);
       setMessages([...newMessages, nextQuestion]);
     } else {
@@ -76,7 +115,6 @@ export default function ChatScreen() {
         text: geminiResponse,
         fromUser: false,
       };
-
       setMessages([...newMessages, finalMessage]);
     }
 
@@ -94,15 +132,31 @@ export default function ChatScreen() {
             />
           </Card>
         ))}
+        
+        {/* Mostra os exercícios quando disponíveis */}
+        {exercises.length > 0 && (
+          <View style={{ marginTop: 16 }}>
+            {exercises.map((exercise) => (
+              <ExerciseCard key={exercise.id} exercise={exercise} />
+            ))}
+          </View>
+        )}
       </ScrollView>
+
       <TextInput
         value={userInput}
         onChangeText={setUserInput}
-        placeholder="Digite sua resposta"
+        placeholder="Digite sua resposta ou 'exercicios'"
+        disabled={isLoading}
       />
-      <Button mode="contained" onPress={handleSend}>
-        Enviar
+      <Button 
+        mode="contained" 
+        onPress={handleSend}
+        loading={isLoading}
+        disabled={isLoading}
+      >
+        {isLoading ? "Carregando..." : "Enviar"}
       </Button>
     </View>
   );
-}
+};

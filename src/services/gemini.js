@@ -1,6 +1,7 @@
 // src/services/gemini.js
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { GEMINI_API_KEY } from "@env";  // Importa a chave do .env
+import { GEMINI_API_KEY } from "@env";
+
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
